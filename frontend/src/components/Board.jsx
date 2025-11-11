@@ -43,7 +43,7 @@ export default function Board() {
           <div style={{ display:'flex', justifyContent:'center', gap:12 }}>
             <div>
               <h4>Comandante</h4>
-              {me.commanderZone.map(c => (
+              {me.commandZone.map(c => (
                 <AnimatedCard
                   key={c.id}
                   card={c}
