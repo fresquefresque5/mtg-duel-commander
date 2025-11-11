@@ -91,7 +91,143 @@ class Game {
     };
   }
 
-  // Métodos del juego (play-land, cast, attack, pass) = iguales a los tuyos
-  // No se modifican salvo ajustes de seguridad y el import-deck ya incluido
-  // ...
+  async applyAction(action, socketId) {
+    const player = this.findPlayerBySocket(socketId);
+    if (!player) throw new Error('Player not found');
+
+    switch (action.type) {
+      case 'shuffle':
+        player.library = shuffleArray(player.library);
+        break;
+
+      case 'draw':
+        const count = action.count || 1;
+        for (let i = 0; i < count; i++) {
+          if (player.library.length > 0) {
+            player.hand.push(player.library.pop());
+          }
+        }
+        break;
+
+      case 'import-deck':
+        await this.handleDeckImport(player, action);
+        break;
+
+      case 'play-land':
+        this.handlePlayLand(player, action);
+        break;
+
+      case 'cast':
+        this.handleCastSpell(player, action);
+        break;
+
+      case 'pass':
+        this.advancePhase();
+        break;
+
+      default:
+        throw new Error(`Unknown action type: ${action.type}`);
+    }
+  }
+
+  async handleDeckImport(player, action) {
+    try {
+      // Dynamically import the DeckImportService
+      const { default: DeckImportService } = await import('../services/deckImportService.js');
+      const deckImportService = new DeckImportService();
+
+      // Import the deck using the service
+      const deckData = await deckImportService.importDeck({
+        deckText: action.deckText,
+        deckUrl: action.deckUrl
+      });
+
+      // Replace player's library with imported cards
+      if (deckData && deckData.cards && deckData.cards.length > 0) {
+        player.library = shuffleArray(deckData.cards);
+        
+        // Clear hand and draw new hand
+        player.hand = [];
+        for (let i = 0; i < 7; i++) {
+          if (player.library.length > 0) {
+            player.hand.push(player.library.pop());
+          }
+        }
+
+        // Update commander if present in the new deck
+        const newCommander = deckData.cards.find(c => c.isCommander);
+        if (newCommander) {
+          player.commandZone = [newCommander];
+        }
+      } else {
+        throw new Error('No cards imported');
+      }
+    } catch (error) {
+      throw new Error(`Failed to import deck: ${error.message}`);
+    }
+  }
+
+  handlePlayLand(player, action) {
+    // Find card in hand
+    const cardIndex = player.hand.findIndex(c => c.id === action.cardId);
+    if (cardIndex === -1) throw new Error('Card not in hand');
+
+    // Check if player can play land
+    if (player.landsPlayedThisTurn >= 1) throw new Error('Already played a land this turn');
+    if (this.phase !== 'main1' && this.phase !== 'main2') throw new Error('Can only play lands during main phase');
+
+    const card = player.hand[cardIndex];
+    if (!card.type.toLowerCase().includes('land')) throw new Error('Card is not a land');
+
+    // Move card to battlefield
+    player.hand.splice(cardIndex, 1);
+    player.battlefield.push({ ...card, tapped: false });
+    player.landsPlayedThisTurn++;
+  }
+
+  handleCastSpell(player, action) {
+    // Simplified casting logic
+    const cardIndex = player.hand.findIndex(c => c.id === action.cardId);
+    if (cardIndex === -1) throw new Error('Card not in hand');
+
+    const card = player.hand[cardIndex];
+    
+    // Move card to battlefield (simplified - doesn't handle instants/sorceries properly)
+    player.hand.splice(cardIndex, 1);
+    if (card.type.toLowerCase().includes('creature') || card.type.toLowerCase().includes('artifact') || card.type.toLowerCase().includes('enchantment')) {
+      player.battlefield.push({ ...card, tapped: false });
+    } else {
+      // For instants/sorceries, resolve and move to graveyard
+      player.graveyard.push(card);
+    }
+  }
+
+  advancePhase() {
+    const phases = ['untap', 'upkeep', 'draw', 'main1', 'combat', 'main2', 'end'];
+    const currentIndex = phases.indexOf(this.phase);
+    
+    if (currentIndex === phases.length - 1) {
+      // End of turn
+      this.phase = phases[0];
+      this.activePlayerIndex = (this.activePlayerIndex + 1) % this.players.length;
+      this.turn++;
+      
+      // Reset lands played
+      const activePlayer = this.players[this.activePlayerIndex];
+      if (activePlayer) {
+        activePlayer.landsPlayedThisTurn = 0;
+      }
+    } else {
+      this.phase = phases[currentIndex + 1];
+    }
+  }
+
+  shouldBotAct() {
+    const activePlayer = this.players[this.activePlayerIndex];
+    return activePlayer && !activePlayer.isHuman;
+  }
+
+  runBotTurn() {
+    return this.bot.decideTurn(this.players[this.activePlayerIndex]);
+  }
 }

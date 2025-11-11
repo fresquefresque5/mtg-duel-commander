@@ -14,6 +14,21 @@ export default class DeckImportService {
     this.userAgent = 'MTG-Duel-Commander-Bot/1.0 (+https://github.com/your-repo)';
     this.cache = new Map();
     this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
+    this.lastRequestTime = 0;
+    this.minRequestDelay = 100; // 100ms delay between requests (10 requests/second max)
+  }
+
+  // Helper to enforce rate limiting
+  async waitForRateLimit() {
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    
+    if (timeSinceLastRequest < this.minRequestDelay) {
+      const delay = this.minRequestDelay - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    this.lastRequestTime = Date.now();
   }
 
   async importDeck(source) {
@@ -425,6 +440,9 @@ export default class DeckImportService {
           return cached.data;
         }
       }
+
+      // Wait for rate limit before making request
+      await this.waitForRateLimit();
 
       // Fetch from Scryfall API
       const apiUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`;

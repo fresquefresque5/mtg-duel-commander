@@ -14,18 +14,18 @@ export default function(io) {
  socket.join(gameId);
  io.to(gameId).emit('game-updated', game.getPublicState());
  });
- socket.on('player-action', (payload) => {
+ socket.on('player-action', async (payload) => {
  const game = getGameById(payload.gameId);
  if (!game) return socket.emit('error', 'Juego no encontrado');
  try {
- game.applyAction(payload.action, socket.id);
+ await game.applyAction(payload.action, socket.id);
  io.to(game.id).emit('game-updated', game.getPublicState());
  // si el bot debe actuar
  if (game.shouldBotAct()) {
  const botActions = game.runBotTurn();
  // aplicar las acciones del bot una por una
  for (const a of botActions) {
- game.applyAction(a, null); // null = bot
+ await game.applyAction(a, null); // null = bot
  }
  io.to(game.id).emit('game-updated', game.getPublicState());
  }

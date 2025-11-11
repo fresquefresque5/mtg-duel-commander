@@ -428,7 +428,6 @@ export default function AnimatedCard({
                   padding: '8px 12px',
                   borderRadius: 6,
                   fontSize: 12,
-                  whiteSpace: 'nowrap',
                   zIndex: 1000,
                   maxWidth: 200,
                   wordWrap: 'break-word',
