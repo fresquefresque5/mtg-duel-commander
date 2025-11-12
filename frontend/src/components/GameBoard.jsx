@@ -100,10 +100,9 @@ export default function GameBoard() {
       if (botLibrary.length === 0) {
         try {
           const res = await axios.get('/api/deck/bot');
-          if (res.data?.success && Array.isArray(res.data.cards)) {
-            const all = res.data.cards;
-            const commander = all.find(c => c.name === 'Slimefoot and Squee');
-            const deck = all.filter(c => c.name !== 'Slimefoot and Squee');
+          if (res.data?.success) {
+            const deck = Array.isArray(res.data.library) ? res.data.library : [];
+            const commander = res.data.commander;
 
             setBotLibrary(deck);
             setBotCommander(commander);
