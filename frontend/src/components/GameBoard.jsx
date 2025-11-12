@@ -96,32 +96,42 @@ export default function GameBoard() {
 
   // Load bot deck if not present
   useEffect(() => {
-    if (botLibrary.length === 0) {
-      axios.get('/api/deck/bot').then(res => {
-        if (res.data.success) {
-          const all = res.data.cards;
-          const commander = all.find(c => c.name === 'Slimefoot and Squee');
-          const deck = all.filter(c => c.name !== 'Slimefoot and Squee');
+    const loadBotDeck = async () => {
+      if (botLibrary.length === 0) {
+        try {
+          const res = await axios.get('/api/deck/bot');
+          if (res.data?.success && Array.isArray(res.data.cards)) {
+            const all = res.data.cards;
+            const commander = all.find(c => c.name === 'Slimefoot and Squee');
+            const deck = all.filter(c => c.name !== 'Slimefoot and Squee');
 
-          setBotLibrary(deck);
-          setBotCommander(commander);
+            setBotLibrary(deck);
+            setBotCommander(commander);
 
-          // Update game store with bot deck
-          setState(prevState => {
-            const newPlayers = [...prevState.players];
-            newPlayers[1] = {
-              ...newPlayers[1],
-              library: deck,
-              hand: [],
-              battlefield: [],
-              graveyard: [],
-              commandZone: commander ? [commander] : []
-            };
-            return { ...prevState, players: newPlayers };
-          });
+            // Update game store with bot deck
+            setState(prevState => {
+              const currentPlayers = Array.isArray(prevState.players) ? prevState.players : [null, null];
+              const newPlayers = [...currentPlayers];
+
+              newPlayers[1] = {
+                ...newPlayers[1],
+                library: deck,
+                hand: [],
+                battlefield: [],
+                graveyard: [],
+                commandZone: commander ? [commander] : []
+              };
+
+              return { ...prevState, players: newPlayers };
+            });
+          }
+        } catch (error) {
+          console.error('Error loading bot deck:', error);
         }
-      });
-    }
+      }
+    };
+
+    loadBotDeck();
   }, [botLibrary.length, setState]);
 
   
