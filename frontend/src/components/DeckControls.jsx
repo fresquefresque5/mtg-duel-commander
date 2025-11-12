@@ -1,44 +1,93 @@
 // frontend/src/components/DeckControls.jsx
 import React, { useState } from 'react';
-import socket from '../sockets/clientSocket';
+import axios from 'axios';
+import { useGameStore } from '../store/gameStore';
 
-export default function DeckControls({ game }) {
+export default function DeckControls() {
+  const { state, setState } = useGameStore();
   const [deckText, setDeckText] = useState('');
-  const [deckUrl, setDeckUrl] = useState('');
+  const [status, setStatus] = useState('');
 
-  const shuffle = () => socket.emit('player-action', { gameId: game.id, action: { type: 'shuffle' } });
-  const draw = () => socket.emit('player-action', { gameId: game.id, action: { type: 'draw', count: 1 } });
+  const handleImportText = async () => {
+    try {
+      setStatus('⏳ Importando mazo...');
+      const res = await axios.post('/api/deck/import', { deckText });
+      const data = res.data;
+      if (!data.success) {
+        setStatus(`❌ ${data.message || 'Error'}`);
+        return;
+      }
 
-  const importText = () => {
-    socket.emit('player-action', { gameId: game.id, action: { type: 'import-deck', deckText } });
-  };
+      const importedCards = data.cards || [];
+      // Poner las cartas en library del jugador (sin alterar command zone)
+      const player = state.players[0];
+      const updatedPlayer = {
+        ...player,
+        library: importedCards,
+        // si quieres, vaciamos mano/battlefield para nueva partida:
+        // hand: [], battlefield: [], commandZone: player.commandZone || []
+      };
 
-  const importUrl = () => {
-    socket.emit('player-action', { gameId: game.id, action: { type: 'import-deck', deckUrl } });
+      const newState = {
+        ...state,
+        players: [updatedPlayer, state.players[1]]
+      };
+
+      setState(newState);
+      setStatus(`✅ Importadas ${importedCards.length} cartas en tu biblioteca.`);
+    } catch (err) {
+      console.error('Import error:', err);
+      setStatus('❌ Error al importar el mazo');
+    }
   };
 
   return (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ display:'flex', gap:8, marginBottom:8 }}>
-        <button onClick={shuffle}>🔄 Barajar</button>
-        <button onClick={draw}>🃏 Robar</button>
+    <div style={{
+      background: 'rgba(0,0,0,0.35)',
+      padding: 14,
+      borderRadius: 12,
+      border: '1px solid rgba(255,255,255,0.06)'
+    }}>
+      <div style={{ fontSize: 14, marginBottom: 8 }}><strong>Importar mazo (texto)</strong></div>
+      <textarea
+        value={deckText}
+        onChange={e => setDeckText(e.target.value)}
+        rows={6}
+        placeholder="Pega el decklist aquí, una carta por línea: 1 Sol Ring"
+        style={{
+          width: '100%',
+          padding: 8,
+          borderRadius: 8,
+          background: '#0b0b0b',
+          color: 'white',
+          border: '1px solid #222',
+          resize: 'vertical'
+        }}
+      />
+      <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+        <button onClick={handleImportText} style={{
+          padding: '8px 12px',
+          borderRadius: 8,
+          background: '#1f7a8c',
+          color: 'white',
+          border: 'none',
+          cursor: 'pointer'
+        }}>
+          Importar desde texto
+        </button>
+        <button onClick={() => { setDeckText(''); setStatus(''); }} style={{
+          padding: '8px 12px',
+          borderRadius: 8,
+          background: '#333',
+          color: 'white',
+          border: 'none',
+          cursor: 'pointer'
+        }}>
+          Limpiar
+        </button>
       </div>
 
-      <div style={{ marginTop:8 }}>
-        <label>Importar deck (pega el decklist):</label><br/>
-        <textarea value={deckText} onChange={e=>setDeckText(e.target.value)} rows={4} style={{width:'100%'}} />
-        <div style={{ marginTop:6 }}>
-          <button onClick={importText}>Importar desde texto</button>
-        </div>
-      </div>
-
-      <div style={{ marginTop:12 }}>
-        <label>O pega un enlace (Moxfield u otra página de mazos públicos):</label><br/>
-        <input value={deckUrl} onChange={e=>setDeckUrl(e.target.value)} style={{ width:'100%' }} placeholder="https://moxfield.com/..." />
-        <div style={{ marginTop:6 }}>
-          <button onClick={importUrl}>Importar desde URL</button>
-        </div>
-      </div>
+      {status && <div style={{ marginTop: 10, color: '#ccc', fontSize: 13 }}>{status}</div>}
     </div>
   );
 }
