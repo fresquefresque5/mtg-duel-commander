@@ -117,20 +117,7 @@ export default function GameBoard() {
     }
   }, [botLibrary.length, setState]);
 
-  // Battlefield drop zone - wrap in proper context check
-  const [, dropRef] = useDrop(() => ({
-    accept: 'CARD',
-    drop: (item) => {
-      if (item && item.card) {
-        playCard(item.card);
-      }
-    },
-    collect: (monitor) => ({
-      isOver: monitor.isOver(),
-      canDrop: monitor.canDrop(),
-    }),
-  }));
-
+  
   const playCard = (card) => {
     const newHand = hand.filter(c => c.id !== card.id);
     const newBattlefield = [...battlefield, card];
