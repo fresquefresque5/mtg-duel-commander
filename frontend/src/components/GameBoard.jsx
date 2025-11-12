@@ -74,16 +74,23 @@ export default function GameBoard() {
 
   // Sync with game store when state changes
   useEffect(() => {
-    if (state?.players) {
-      setLibrary(state.players[0]?.library || []);
-      setHand(state.players[0]?.hand || []);
-      setBattlefield(state.players[0]?.battlefield || []);
-      setGraveyard(state.players[0]?.graveyard || []);
-      setCommander(state.players[0]?.commandZone?.[0] || null);
+    try {
+      if (state?.players && Array.isArray(state.players)) {
+        const playerData = state.players[0] || {};
+        const botData = state.players[1] || {};
 
-      setBotLibrary(state.players[1]?.library || []);
-      setBotHand(state.players[1]?.hand || []);
-      setBotCommander(state.players[1]?.commandZone?.[0] || null);
+        setLibrary(Array.isArray(playerData.library) ? playerData.library : []);
+        setHand(Array.isArray(playerData.hand) ? playerData.hand : []);
+        setBattlefield(Array.isArray(playerData.battlefield) ? playerData.battlefield : []);
+        setGraveyard(Array.isArray(playerData.graveyard) ? playerData.graveyard : []);
+        setCommander(Array.isArray(playerData.commandZone) && playerData.commandZone[0] ? playerData.commandZone[0] : null);
+
+        setBotLibrary(Array.isArray(botData.library) ? botData.library : []);
+        setBotHand(Array.isArray(botData.hand) ? botData.hand : []);
+        setBotCommander(Array.isArray(botData.commandZone) && botData.commandZone[0] ? botData.commandZone[0] : null);
+      }
+    } catch (error) {
+      console.error('Error syncing game state:', error);
     }
   }, [state]);
 
