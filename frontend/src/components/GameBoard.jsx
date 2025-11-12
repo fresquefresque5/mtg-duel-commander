@@ -305,56 +305,36 @@ export default function GameBoard() {
 
         {/* Battlefield */}
         <motion.div
-          ref={dropRef}
-          style={{
-            minHeight: 250,
-            border: '3px dashed rgba(255,215,0,0.3)',
-            borderRadius: 16,
-            margin: '24px auto',
-            width: '90%',
-            maxWidth: 1200,
-            background: 'rgba(255,255,255,0.03)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 16,
-            padding: 20,
-            position: 'relative',
-            transition: 'all 0.3s ease'
-          }}
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.4 }}
-          whileHover={{
-            borderColor: 'rgba(255,215,0,0.5)',
-            background: 'rgba(255,255,255,0.05)'
-          }}
         >
-          {battlefield.length === 0 && (
-            <div style={{
-              color: 'rgba(255,255,255,0.3)',
-              fontSize: 18,
-              textAlign: 'center',
-              fontStyle: 'italic'
-            }}>
-              Arrastra cartas aquí para jugarlas
-            </div>
-          )}
+          <BattlefieldDropZone onPlayCard={playCard}>
+            {battlefield.length === 0 && (
+              <div style={{
+                color: 'rgba(255,255,255,0.3)',
+                fontSize: 18,
+                textAlign: 'center',
+                fontStyle: 'italic'
+              }}>
+                Arrastra cartas aquí para jugarlas
+              </div>
+            )}
 
-          <AnimatePresence>
-            {battlefield.map((card, index) => (
-              <motion.div
-                key={card.id}
-                initial={{ opacity: 0, scale: 0.8, y: 50 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.8, y: 50 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <SpellCastingCard card={card} />
-              </motion.div>
-            ))}
-          </AnimatePresence>
+            <AnimatePresence>
+              {battlefield.map((card, index) => (
+                <motion.div
+                  key={card.id}
+                  initial={{ opacity: 0, scale: 0.8, y: 50 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.8, y: 50 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <SpellCastingCard card={card} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </BattlefieldDropZone>
         </motion.div>
 
         {/* Player Zone */}
