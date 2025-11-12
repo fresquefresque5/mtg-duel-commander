@@ -202,6 +202,14 @@ export default function AnimatedCard({
   const getAnimationVariant = () => {
     if (animationType === 'damage') return 'damage';
     if (animationType === 'heal') return 'heal';
+    if (animationType === 'drawFromDeck') return 'drawFromDeck';
+    if (animationType === 'castFromHand') return 'castFromHand';
+    if (animationType === 'reveal') return 'reveal';
+    if (animationType === 'toGraveyard') return 'toGraveyard';
+    if (animationType === 'exile') return 'exile';
+    if (animationType === 'bounce') return 'bounce';
+    if (animationType === 'glow') return 'glow';
+    if (animationType === 'shuffle') return 'shuffle';
     if (isSelected) return 'selected';
     if (isTapped) return 'tapped';
     if (isAttacking) return 'attacking';
