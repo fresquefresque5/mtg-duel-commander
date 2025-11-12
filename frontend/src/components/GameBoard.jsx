@@ -62,15 +62,15 @@ export default function GameBoard() {
   const player = state?.players?.[0];
   const botPlayer = state?.players?.[1];
 
-  const [library, setLibrary] = useState(player?.library || []);
-  const [hand, setHand] = useState(player?.hand || []);
-  const [battlefield, setBattlefield] = useState(player?.battlefield || []);
-  const [graveyard, setGraveyard] = useState(player?.graveyard || []);
-  const [commander, setCommander] = useState(player?.commandZone?.[0] || null);
+  const [library, setLibrary] = useState([]);
+  const [hand, setHand] = useState([]);
+  const [battlefield, setBattlefield] = useState([]);
+  const [graveyard, setGraveyard] = useState([]);
+  const [commander, setCommander] = useState(null);
 
-  const [botLibrary, setBotLibrary] = useState(botPlayer?.library || []);
-  const [botHand, setBotHand] = useState(botPlayer?.hand || []);
-  const [botCommander, setBotCommander] = useState(botPlayer?.commandZone?.[0] || null);
+  const [botLibrary, setBotLibrary] = useState([]);
+  const [botHand, setBotHand] = useState([]);
+  const [botCommander, setBotCommander] = useState(null);
 
   // Sync with game store when state changes
   useEffect(() => {
