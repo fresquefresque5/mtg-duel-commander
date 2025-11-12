@@ -332,8 +332,26 @@ export const SpellCastingCard = ({ card, ...props }) => (
   <AnimatedCard
     {...props}
     card={card}
-    animationType="cast-from-hand"
+    animationType="castFromHand"
     style={{ ...props.style, zIndex: 100 }}
+  />
+);
+
+export const DrawnCard = ({ card, ...props }) => (
+  <AnimatedCard
+    {...props}
+    card={card}
+    animationType="drawFromDeck"
+    style={{ ...props.style }}
+  />
+);
+
+export const RevealedCard = ({ card, ...props }) => (
+  <AnimatedCard
+    {...props}
+    card={card}
+    animationType="reveal"
+    style={{ ...props.style }}
   />
 );
 
@@ -370,5 +388,41 @@ export const HealedCard = ({ card, ...props }) => (
       ...props.style,
       filter: 'brightness(1.2) saturate(0.8)'
     }}
+  />
+);
+
+export const ExiledCard = ({ card, ...props }) => (
+  <AnimatedCard
+    {...props}
+    card={card}
+    animationType="exile"
+    style={{ ...props.style }}
+  />
+);
+
+export const ShuffledCard = ({ card, ...props }) => (
+  <AnimatedCard
+    {...props}
+    card={card}
+    animationType="shuffle"
+    style={{ ...props.style }}
+  />
+);
+
+export const GlowingCard = ({ card, ...props }) => (
+  <AnimatedCard
+    {...props}
+    card={card}
+    animationType="glow"
+    style={{ ...props.style }}
+  />
+);
+
+export const BouncingCard = ({ card, ...props }) => (
+  <AnimatedCard
+    {...props}
+    card={card}
+    animationType="bounce"
+    style={{ ...props.style }}
   />
 );
