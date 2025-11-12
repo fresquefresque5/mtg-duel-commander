@@ -1,65 +1,141 @@
 import React, { useEffect, useState } from 'react';
 import { DndProvider, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { useGameStore } from '../store/gameStore';
 import CardDraggable from './CardDraggable.jsx';
 import BotDeckZone from './BotDeckZone.jsx';
 import PlayerDeckZone from './PlayerDeckZone.jsx';
 import AnimatedCard from './AnimatedCard.jsx';
+import DeckControls from './DeckControls.jsx';
+import DeckView from './DeckView.jsx';
+import { DrawnCard, SpellCastingCard } from './AnimatedCard.jsx';
 
 export default function GameBoard() {
   const { state, setState } = useGameStore();
-  const [library, setLibrary] = useState([]);
-  const [hand, setHand] = useState([]);
-  const [battlefield, setBattlefield] = useState([]);
-  const [botLibrary, setBotLibrary] = useState([]);
-  const [botHand, setBotHand] = useState([]);
-  const [botCommander, setBotCommander] = useState(null);
+  const [showDeckImport, setShowDeckImport] = useState(false);
+  const [showDeckView, setShowDeckView] = useState(false);
 
-  // Cargar mazo del bot
+  // Initialize with game state or empty state
+  const player = state?.players?.[0];
+  const botPlayer = state?.players?.[1];
+
+  const [library, setLibrary] = useState(player?.library || []);
+  const [hand, setHand] = useState(player?.hand || []);
+  const [battlefield, setBattlefield] = useState(player?.battlefield || []);
+  const [graveyard, setGraveyard] = useState(player?.graveyard || []);
+  const [commander, setCommander] = useState(player?.commandZone?.[0] || null);
+
+  const [botLibrary, setBotLibrary] = useState(botPlayer?.library || []);
+  const [botHand, setBotHand] = useState(botPlayer?.hand || []);
+  const [botCommander, setBotCommander] = useState(botPlayer?.commandZone?.[0] || null);
+
+  // Sync with game store when state changes
   useEffect(() => {
-    axios.get('/api/deck/bot').then(res => {
-      if (res.data.success) {
-        const all = res.data.cards;
-        const commander = all.find(c => c.name === 'Slimefoot and Squee');
-        const deck = all.filter(c => c.name !== 'Slimefoot and Squee');
-        setBotLibrary(deck);
-        setBotCommander(commander);
-      }
-    });
-  }, []);
+    if (state?.players) {
+      setLibrary(state.players[0]?.library || []);
+      setHand(state.players[0]?.hand || []);
+      setBattlefield(state.players[0]?.battlefield || []);
+      setGraveyard(state.players[0]?.graveyard || []);
+      setCommander(state.players[0]?.commandZone?.[0] || null);
 
-  // Zona para soltar cartas
+      setBotLibrary(state.players[1]?.library || []);
+      setBotHand(state.players[1]?.hand || []);
+      setBotCommander(state.players[1]?.commandZone?.[0] || null);
+    }
+  }, [state]);
+
+  // Load bot deck if not present
+  useEffect(() => {
+    if (botLibrary.length === 0) {
+      axios.get('/api/deck/bot').then(res => {
+        if (res.data.success) {
+          const all = res.data.cards;
+          const commander = all.find(c => c.name === 'Slimefoot and Squee');
+          const deck = all.filter(c => c.name !== 'Slimefoot and Squee');
+
+          setBotLibrary(deck);
+          setBotCommander(commander);
+
+          // Update game store with bot deck
+          setState(prevState => {
+            const newPlayers = [...prevState.players];
+            newPlayers[1] = {
+              ...newPlayers[1],
+              library: deck,
+              hand: [],
+              battlefield: [],
+              graveyard: [],
+              commandZone: commander ? [commander] : []
+            };
+            return { ...prevState, players: newPlayers };
+          });
+        }
+      });
+    }
+  }, [botLibrary.length, setState]);
+
+  // Battlefield drop zone
   const [, dropRef] = useDrop(() => ({
     accept: 'CARD',
-    drop: (item) => playCard(item.card)
+    drop: (item) => {
+      if (item.card) {
+        playCard(item.card);
+      }
+    }
   }));
 
-  const shuffleDeck = () => {
-    const shuffled = [...library].sort(() => Math.random() - 0.5);
-    setLibrary(shuffled);
-  };
-
-  const drawOne = () => {
-    if (library.length === 0) return;
-    const newLib = [...library];
-    const drawn = newLib.pop();
-    setLibrary(newLib);
-    setHand([...hand, drawn]);
-  };
-
-  const drawSeven = () => {
-    const newLib = [...library];
-    const drawn = newLib.splice(-7);
-    setLibrary(newLib);
-    setHand([...hand, ...drawn]);
-  };
-
   const playCard = (card) => {
-    setBattlefield([...battlefield, card]);
-    setHand(hand.filter(c => c.id !== card.id));
+    const newHand = hand.filter(c => c.id !== card.id);
+    const newBattlefield = [...battlefield, card];
+
+    setHand(newHand);
+    setBattlefield(newBattlefield);
+
+    // Update game store
+    setState(prevState => {
+      const newPlayers = [...prevState.players];
+      newPlayers[0] = {
+        ...newPlayers[0],
+        hand: newHand,
+        battlefield: newBattlefield
+      };
+      return { ...prevState, players: newPlayers };
+    });
+  };
+
+  const handleCardDraw = (drawnCards) => {
+    const newLibrary = library.slice(0, -drawnCards.length);
+    const newHand = [...hand, ...drawnCards];
+
+    setLibrary(newLibrary);
+    setHand(newHand);
+
+    // Update game store
+    setState(prevState => {
+      const newPlayers = [...prevState.players];
+      newPlayers[0] = {
+        ...newPlayers[0],
+        library: newLibrary,
+        hand: newHand
+      };
+      return { ...prevState, players: newPlayers };
+    });
+  };
+
+  const handleDeckShuffle = (shuffledLibrary) => {
+    setLibrary(shuffledLibrary);
+
+    // Update game store
+    setState(prevState => {
+      const newPlayers = [...prevState.players];
+      newPlayers[0] = {
+        ...newPlayers[0],
+        library: shuffledLibrary
+      };
+      return { ...prevState, players: newPlayers };
+    });
   };
 
   return (
@@ -68,59 +144,276 @@ export default function GameBoard() {
         className="game-board"
         style={{
           minHeight: '100vh',
-          background: '#0b0f13',
+          background: 'linear-gradient(135deg, #0b0f13 0%, #1a2332 100%)',
           color: '#fff',
-          padding: 24
+          padding: 16,
+          position: 'relative'
         }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
       >
-        <h2 style={{ textAlign: 'center' }}>Duel Commander</h2>
+        {/* Game Header */}
+        <motion.div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 24,
+            padding: '0 16px'
+          }}
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <h2 style={{
+            margin: 0,
+            color: 'var(--mtg-gold, #ffd700)',
+            fontSize: 24,
+            fontWeight: 'bold',
+            textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+          }}>
+            ⚔️ Duel Commander
+          </h2>
+
+          <div style={{ display: 'flex', gap: 12 }}>
+            <motion.button
+              onClick={() => setShowDeckImport(!showDeckImport)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 8,
+                background: 'var(--mtg-teal, #1f7a8c)',
+                color: 'white',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 'bold'
+              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              📥 Importar Mazo
+            </motion.button>
+
+            <motion.button
+              onClick={() => setShowDeckView(!showDeckView)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 8,
+                background: 'var(--mtg-green, #2a9d8f)',
+                color: 'white',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 'bold'
+              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              🂠 Ver Mazo
+            </motion.button>
+          </div>
+        </motion.div>
+
+        {/* Deck Import Modal */}
+        <AnimatePresence>
+          {showDeckImport && (
+            <motion.div
+              style={{
+                position: 'fixed',
+                top: 80,
+                right: 16,
+                zIndex: 100,
+                maxWidth: 400
+              }}
+              initial={{ opacity: 0, x: 100 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 100 }}
+            >
+              <DeckControls />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Deck View Modal */}
+        <AnimatePresence>
+          {showDeckView && player && (
+            <motion.div
+              style={{
+                position: 'fixed',
+                top: 80,
+                left: 16,
+                zIndex: 100,
+                maxWidth: 500,
+                maxHeight: '80vh',
+                overflowY: 'auto'
+              }}
+              initial={{ opacity: 0, x: -100 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -100 }}
+            >
+              <DeckView player={player} playerIndex={0} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Bot Zone */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
+        <motion.div
+          style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}
+          initial={{ opacity: 0, y: -50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
           <BotDeckZone
             library={botLibrary}
             commander={botCommander}
             handCount={botHand.length}
           />
-        </div>
+        </motion.div>
 
         {/* Battlefield */}
-        <div
+        <motion.div
           ref={dropRef}
           style={{
-            minHeight: 200,
-            border: '2px dashed rgba(255,255,255,0.2)',
-            borderRadius: 12,
+            minHeight: 250,
+            border: '3px dashed rgba(255,215,0,0.3)',
+            borderRadius: 16,
             margin: '24px auto',
-            width: '80%',
-            background: 'rgba(255,255,255,0.05)',
+            width: '90%',
+            maxWidth: 1200,
+            background: 'rgba(255,255,255,0.03)',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
             flexWrap: 'wrap',
-            gap: 8
+            gap: 16,
+            padding: 20,
+            position: 'relative',
+            transition: 'all 0.3s ease'
+          }}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.4 }}
+          whileHover={{
+            borderColor: 'rgba(255,215,0,0.5)',
+            background: 'rgba(255,255,255,0.05)'
           }}
         >
-          {battlefield.map((card) => (
-            <AnimatedCard key={card.id} card={card} />
-          ))}
-        </div>
+          {battlefield.length === 0 && (
+            <div style={{
+              color: 'rgba(255,255,255,0.3)',
+              fontSize: 18,
+              textAlign: 'center',
+              fontStyle: 'italic'
+            }}>
+              Arrastra cartas aquí para jugarlas
+            </div>
+          )}
 
-        {/* Player Deck + Hand */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 48 }}>
-          <PlayerDeckZone
-            library={library}
-            onShuffle={shuffleDeck}
-            onDrawOne={drawOne}
-            onDrawSeven={drawSeven}
-          />
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, width: 600 }}>
-            {hand.map((card) => (
-              <CardDraggable key={card.id} card={card} onPlay={playCard} />
+          <AnimatePresence>
+            {battlefield.map((card, index) => (
+              <motion.div
+                key={card.id}
+                initial={{ opacity: 0, scale: 0.8, y: 50 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 50 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <SpellCastingCard card={card} />
+              </motion.div>
             ))}
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Player Zone */}
+        <motion.div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: 32,
+            marginTop: 32
+          }}
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          {/* Player Deck Zone */}
+          <div style={{ flexShrink: 0 }}>
+            <PlayerDeckZone playerIndex={0} />
+
+            {/* Commander Zone */}
+            {commander && (
+              <motion.div
+                style={{
+                  marginTop: 20,
+                  textAlign: 'center'
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7 }}
+              >
+                <div style={{
+                  fontSize: 12,
+                  color: 'var(--mtg-gold, #ffd700)',
+                  marginBottom: 8,
+                  fontWeight: 'bold'
+                }}>
+                  Comandante
+                </div>
+                <AnimatedCard card={commander} small />
+              </motion.div>
+            )}
           </div>
-        </div>
+
+          {/* Player Hand */}
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 12,
+            flex: 1,
+            justifyContent: 'center',
+            minHeight: 200,
+            padding: 16,
+            background: 'rgba(255,255,255,0.02)',
+            borderRadius: 12,
+            border: '2px solid rgba(255,255,255,0.1)'
+          }}>
+            <AnimatePresence>
+              {hand.map((card, index) => (
+                <motion.div
+                  key={card.id}
+                  initial={{ opacity: 0, scale: 0.8, y: 100 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.8, y: -100 }}
+                  transition={{
+                    delay: index * 0.15,
+                    type: 'spring',
+                    damping: 15
+                  }}
+                >
+                  <CardDraggable
+                    card={card}
+                    onPlay={playCard}
+                    animationType="drawFromDeck"
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {hand.length === 0 && (
+              <div style={{
+                color: 'rgba(255,255,255,0.3)',
+                fontSize: 16,
+                textAlign: 'center',
+                width: '100%',
+                fontStyle: 'italic'
+              }}>
+                Tu mano está vacía. Roba cartas para comenzar.
+              </div>
+            )}
+          </div>
+        </motion.div>
       </motion.div>
     </DndProvider>
   );
