@@ -12,6 +12,47 @@ import DeckControls from './DeckControls.jsx';
 import DeckView from './DeckView.jsx';
 import { DrawnCard, SpellCastingCard } from './AnimatedCard.jsx';
 
+// Separate component for the battlefield drop zone to ensure proper DnD context
+function BattlefieldDropZone({ children, onPlayCard }) {
+  const [, dropRef] = useDrop(() => ({
+    accept: 'CARD',
+    drop: (item) => {
+      if (item && item.card) {
+        onPlayCard(item.card);
+      }
+    },
+    collect: (monitor) => ({
+      isOver: monitor.isOver(),
+      canDrop: monitor.canDrop(),
+    }),
+  }));
+
+  return (
+    <div
+      ref={dropRef}
+      style={{
+        minHeight: 250,
+        border: '3px dashed rgba(255,215,0,0.3)',
+        borderRadius: 16,
+        margin: '24px auto',
+        width: '90%',
+        maxWidth: 1200,
+        background: 'rgba(255,255,255,0.03)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 16,
+        padding: 20,
+        position: 'relative',
+        transition: 'all 0.3s ease'
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function GameBoard() {
   const { state, setState } = useGameStore();
   const [showDeckImport, setShowDeckImport] = useState(false);
