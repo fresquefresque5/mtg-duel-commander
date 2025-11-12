@@ -76,14 +76,18 @@ export default function GameBoard() {
     }
   }, [botLibrary.length, setState]);
 
-  // Battlefield drop zone
+  // Battlefield drop zone - wrap in proper context check
   const [, dropRef] = useDrop(() => ({
     accept: 'CARD',
     drop: (item) => {
-      if (item.card) {
+      if (item && item.card) {
         playCard(item.card);
       }
-    }
+    },
+    collect: (monitor) => ({
+      isOver: monitor.isOver(),
+      canDrop: monitor.canDrop(),
+    }),
   }));
 
   const playCard = (card) => {
