@@ -136,22 +136,34 @@ export default function GameBoard() {
 
   
   const playCard = (card) => {
-    const newHand = hand.filter(c => c.id !== card.id);
-    const newBattlefield = [...battlefield, card];
+    if (!card || !card.id) {
+      console.warn('Invalid card provided to playCard:', card);
+      return;
+    }
 
-    setHand(newHand);
-    setBattlefield(newBattlefield);
+    try {
+      const newHand = hand.filter(c => c.id !== card.id);
+      const newBattlefield = [...battlefield, card];
 
-    // Update game store
-    setState(prevState => {
-      const newPlayers = [...prevState.players];
-      newPlayers[0] = {
-        ...newPlayers[0],
-        hand: newHand,
-        battlefield: newBattlefield
-      };
-      return { ...prevState, players: newPlayers };
-    });
+      setHand(newHand);
+      setBattlefield(newBattlefield);
+
+      // Update game store
+      setState(prevState => {
+        const currentPlayers = Array.isArray(prevState.players) ? prevState.players : [null, null];
+        const newPlayers = [...currentPlayers];
+
+        newPlayers[0] = {
+          ...newPlayers[0],
+          hand: newHand,
+          battlefield: newBattlefield
+        };
+
+        return { ...prevState, players: newPlayers };
+      });
+    } catch (error) {
+      console.error('Error playing card:', error);
+    }
   };
 
   const handleCardDraw = (drawnCards) => {
